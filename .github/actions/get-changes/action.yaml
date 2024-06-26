@@ -8,6 +8,11 @@ inputs:
     description: Which folder to check for changes
     default: "images"
 
+outputs:
+  has_changes: 
+    description: "Whether there are any folder changes"
+    value: "${{ steps.changes.outputs.has_changes }}"
+
 runs:
   using: composite
   steps:

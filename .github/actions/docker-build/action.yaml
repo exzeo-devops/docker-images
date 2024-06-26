@@ -18,7 +18,7 @@ inputs:
     description: Name of the docker image
   context:
     required: true
-    description: Docker context where to run docker    
+    description: Docker context where to run docker      
 
 runs:
   using: composite
