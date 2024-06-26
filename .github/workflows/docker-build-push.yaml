@@ -59,5 +59,7 @@ jobs:
         if: ${{ steps.changes.outputs.has_changes }}
         uses: ./.github/actions/docker-build
         with:
+          docker-username: ${{ github.actor }}
+          docker-password: ${{ secrets.GITHUB_TOKEN }}
           image: ${{ matrix.name }}
           file: "./images/${{ matrix.name }}/Dockerfile"

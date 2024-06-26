@@ -7,6 +7,12 @@ inputs:
     required: false
     description: Container registry name
     default: "ghcr.io"
+  docker-username:
+    required: true
+    description: Username for authenticating to docker registry
+  docker-password:
+    required: true
+    description: Password for authenticating to docker registry
   image:
     required: true
     description: Name of the docker image
@@ -30,8 +36,8 @@ runs:
       uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
       with:
         registry: ${{ inputs.docker-registry }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        username: ${{ inputs.docker-username }}
+        password: ${{ inputs.docker-password }}
 
     # https://github.com/docker/metadata-action
     - name: Extract Docker metadata
