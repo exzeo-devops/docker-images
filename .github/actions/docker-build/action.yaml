@@ -1,0 +1,62 @@
+name: Build docker image
+
+description: Action for building docker
+
+inputs:
+  docker-registry:
+    required: false
+    description: Container registry name
+    default: "ghcr.io"
+  docker-username:
+    required: true
+    description: Username for authenticating to docker registry
+  docker-password:
+    required: true
+    description: Password for authenticating to docker registry
+  image:
+    required: true
+    description: Name of the docker image
+  context:
+    required: true
+    description: Docker context where to run docker      
+
+runs:
+  using: composite
+  steps:       
+    # https://github.com/docker/setup-qemu-action
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
+
+    # https://github.com/docker/setup-buildx-action
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+
+    # https://github.com/docker/login-action
+    - name: Log in to the Container registry
+      uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
+      with:
+        registry: ${{ inputs.docker-registry }}
+        username: ${{ inputs.docker-username }}
+        password: ${{ inputs.docker-password }}
+
+    # https://github.com/docker/metadata-action
+    - name: Extract Docker metadata
+      id: meta
+      uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
+      with:
+        images: ${{ inputs.docker-registry }}/${{ github.repository }}/${{ inputs.image }}
+        tags: |
+          # set latest tag for master branch
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    # https://github.com/docker/build-push-action
+    - name: Build and push Docker image
+      id: build-and-push
+      uses: docker/build-push-action@15560696de535e4014efeff63c48f16952e52dd1 # v6.2.0
+      with:
+        context: ${{ inputs.context }}
+        push: ${{ github.ref == format('refs/heads/{0}', 'main') }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
