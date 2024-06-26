@@ -1,0 +1,36 @@
+name: Get changes
+
+description: Action for getting what folder was modified
+
+inputs:
+  folder:
+    required: false
+    description: Which folder to check for changes
+    default: "images"
+
+runs:
+  using: composite
+  steps:
+    - name: Check if folder has been modified
+      shell: bash
+      id: changes
+      run: |        
+        files_changed=$(git diff --name-only --diff-filter=d HEAD^..HEAD)
+
+        # Check if changes is empty
+        if [ -z "$files_changed" ]; then
+          echo "No changes detected."
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        dirs_changed=$(echo "$files_changed" | grep "^${{ inputs.folder }}/" | cut -d'/' -f2 | sort | uniq | jq -R -s -c 'split("\n")[:-1]')
+
+        # Check if no changes
+        if [[ $(echo "$dirs_changed" | jq 'length') -eq 0 ]]; then
+          echo "No changes in ${{ inputs.folder }} detected."
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        echo "has_changes=true"  >> $GITHUB_OUTPUT  

@@ -40,10 +40,10 @@ runs:
         password: ${{ inputs.docker-password }}
 
     - name: Get commit id
-      id: commit
+      id: get-commit
       shell: bash
       run: |
-        echo "id=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+        echo "commit_id=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
     # https://github.com/docker/metadata-action
     - name: Extract Docker metadata
@@ -53,7 +53,7 @@ runs:
         images: ${{ inputs.docker-registry }}/${{ github.repository }}/${{ inputs.image }}
         tags: |
           # commit id
-          type=raw,value=${{ steps.commit.outputs.id }}
+          type=raw,value=${{ steps.get-commit.outputs.commit_id }}
           # set latest tag for master branch
           type=raw,value=latest,enable={{is_default_branch}}
 
