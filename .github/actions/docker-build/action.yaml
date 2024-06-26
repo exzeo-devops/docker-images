@@ -46,8 +46,8 @@ runs:
       with:
         images: ${{ inputs.docker-registry }}/${{ github.repository }}/${{ inputs.image }}
         tags: |
-          # minimal (short sha)
-          type=sha
+          # full length sha
+          type=sha,format=long
           # set latest tag for master branch
           type=raw,value=latest,enable={{is_default_branch}}
 
