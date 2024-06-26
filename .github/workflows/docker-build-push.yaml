@@ -1,45 +1,12 @@
 name: Build and Push Docker Image
 
 on: 
-  workflow_call:
-    inputs:
-      # Docker context to use
-      context:
-        type: string
-        required: false
-        default: "."
-      # Any additional build args passed to docker build
-      build-args:
-        type: string
-        required: false 
-      # Change the docker registry
-      docker-registry:
-        type: string
-        required: false
-        default: "ghcr.io"
-      # Change location of Dockerfile, defaults to ./Dockerfile
-      file:
-        type: string
-        required: false
-      # Whether to build only linux/amd64 or other platforms
-      platforms:
-        type: string
-        required: false
-        default: "linux/amd64"
-      # Which docker target
-      target:
-        type: string
-        required: false
-      # Whether pull request will push image
-      push-pr:
-        type: boolean
-        required: false
-        default: false
-
-env:
-  registry: "${{ inputs.docker-registry }}"
-  push-image: "${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || 
-                   (github.event_name == 'pull_request' && inputs.push-pr) }}"
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 9 * * WED' # 9:00am every Wednesday
 
 permissions:
   contents: read
@@ -51,51 +18,46 @@ jobs:
     name: "Build and Push Docker Image"
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        include:
+          - name: ubuntu-2004-ansible
+          - name: ubuntu-2204-ansible
+          - name: ubuntu-2404-ansible
+
     steps:     
       # https://github.com/actions/checkout
       - name: Checkout repo
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
+
+      - name: Check if image has been modified
+        id: changes
+        run: |        
+          files_changed=$(git diff --name-only --diff-filter=d HEAD^..HEAD)
+
+          # Check if changes is empty
+          if [ -z "$files_changed" ]; then
+              echo "No changes detected."
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+              exit 0
+          fi
+
+          dirs_changed=$(echo "$files_changed" | grep "^images/" | cut -d'/' -f2 | sort | uniq | jq -R -s -c 'split("\n")[:-1]')
+
+          # Check if no changes
+          if [[ $(echo "$dirs_changed" | jq 'length') -eq 0 ]]; then
+              echo "No changes in ./images detected."
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+          exit 0
+          fi
+
+          echo "has_changes=true"  >> $GITHUB_OUTPUT
           
-      # https://github.com/docker/setup-qemu-action
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
-
-      # https://github.com/docker/setup-buildx-action
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
-
-      # https://github.com/docker/login-action
-      - name: Log in to the Container registry
-        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
+      - name: Building docker image
+        if: ${{ steps.changes.outputs.has_changes }}
+        uses: ./.github/actions/docker-build
         with:
-          registry: ${{ env.registry }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # https://github.com/docker/metadata-action
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
-        with:
-          images: ${{ env.registry }}/${{ github.repository }}
-          tags: |
-            type=ref,event=tag,enable=${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-            type=raw,value=${{ github.event.pull_request.head.ref }},enable=${{ (github.event_name == 'pull_request' && inputs.push-pr) }}
-
-      # https://github.com/docker/build-push-action
-      - name: Build and push Docker image
-        id: build-and-push
-        uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6.1.0
-        with:
-          context: ${{ inputs.context }}
-          platforms: ${{ inputs.platforms }}
-          file: ${{ inputs.file }}
-          build-args: ${{ inputs.build-args }}
-          target: ${{ inputs.target }}
-          push: ${{ env.push-image }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          image: ${{ matrix.name }}
+          file: "./images/${{ matrix.name }}/Dockerfile"
