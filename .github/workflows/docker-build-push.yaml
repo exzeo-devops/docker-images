@@ -62,4 +62,4 @@ jobs:
           docker-username: ${{ github.actor }}
           docker-password: ${{ secrets.GITHUB_TOKEN }}
           image: ${{ matrix.name }}
-          file: "./images/${{ matrix.name }}/Dockerfile"
+          context: "./images/${{ matrix.name }}"
