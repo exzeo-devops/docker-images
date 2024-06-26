@@ -2,9 +2,11 @@ name: Build and Push Docker Image
 
 on: 
   pull_request:
+
   push:
     branches:
       - main
+
   schedule:
     - cron: '0 9 * * WED' # 9:00am every Wednesday
 
@@ -12,9 +14,12 @@ permissions:
   contents: read
   packages: write
 
-jobs:  
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
 
-  push:
+jobs:  
+  docker:
     name: "Build and Push Docker Image"
     runs-on: ubuntu-latest
 
@@ -29,6 +34,8 @@ jobs:
       # https://github.com/actions/checkout
       - name: Checkout repo
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 0
 
       - name: Check if image has been modified
         id: changes
